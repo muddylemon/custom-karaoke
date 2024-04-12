@@ -1,0 +1,4 @@
+moviepy
+demucs
+openai-whisper
+whisperx
