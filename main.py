@@ -1,5 +1,131 @@
 import argparse
 
+import torch
+
+from moviepy.editor import *
+from moviepy.video.tools.subtitles import SubtitlesClip
+import demucs
+from whisper.utils import get_writer
+import whisperx
+import gc
+import os
+
+
+def transcribe(audio_file: str) -> dict:
+    """Transcribe an audio file using Whisper."""
+    device = "cuda"
+    batch_size = 16  # reduce if low on GPU mem
+    compute_type = "float16"
+
+    model = whisperx.load_model("large-v2", device, compute_type=compute_type)
+
+    model_dir = "/models/"
+    if not os.path.exists(model_dir):
+        os.makedirs(model_dir)
+
+    audio = whisperx.load_audio(audio_file)
+    result = model.transcribe(audio, batch_size=batch_size)
+    print("before alignment:" + result["segments"])  # before alignment
+
+    gc.collect()
+    torch.cuda.empty_cache()
+    del model
+
+    model_a, metadata = whisperx.load_align_model(
+        language_code=result["language"], device=device)
+    result = whisperx.align(result["segments"], model_a,
+                            metadata, audio, device, return_char_alignments=False)
+
+    print("\nafter alignment:" + result["segments"])  # after alignment
+    return result["segments"]
+
+
+def write_subtitles(subtitles: dict, output_path: str):
+    """Write subtitles to a video file."""
+
+    subtitles_path = output_path.replace(".mp4", ".srt")
+
+    srt_writer = get_writer("srt", output_path)
+    srt_writer(subtitles)
+
+
+def separate_tracks(audio_file_path: str) -> tuple[str, str]:
+    """Separates vocals and music from an audio file."""
+
+    audio_filename = audio_file_path.split("/")[-1]
+
+    separator = demucs.api.Separator(progress=True, jobs=4)
+
+    _, separated = separator.separate_audio_file(audio_file_path)
+
+    for stem, source in separated.items():
+        demucs.api.save_audio(
+            source, f"../separated/{stem}_{audio_filename}", samplerate=separator.samplerate)
+
+    demucs.api.save_audio(
+        separated["other"] + separated["drums"] + separated["bass"], f"../separated/music_{audio_filename}", samplerate=separator.samplerate)
+
+    return f"../separated/vocals_{audio_filename}", f"../separated/music_{audio_filename}"
+
+
+def create(vocals_path: str, music_path: str, video_path: str):
+
+    audio = AudioFileClip(music_path).set_fps(44100)
+    vocals_audio = AudioFileClip(vocals_path).volumex(0.075).set_fps(44100)
+
+    combined_audio = CompositeAudioClip([audio, vocals_audio])
+
+    background_video = VideoFileClip(video_path, target_resolution=(720, 1280)).set_fps(
+        30).set_duration(combined_audio.duration)
+
+    text_container_size = (background_video.w - 2 *
+                           (background_video.w // 20), None)
+
+    font = "fonts/dv.tff"
+
+    default_font_size = min(max(int(background_video.w / 18), 15), 45)
+
+    def generator(txt):
+        if txt == "instrumental":
+            fontsize = default_font_size // 2
+            fontcolor = "#aeedad"
+        else:
+            fontsize = default_font_size
+            fontcolor = "#FFEEFF"
+
+        return TextClip(
+            txt,
+            font=font,
+            fontsize=fontsize,
+            color=fontcolor,
+            stroke_color="#000000",
+            stroke_width=0.5,
+            size=text_container_size,
+            method="caption",
+            align='center'
+        )
+
+    segments = transcribe(vocals_path)
+    subtitles_path = write_subtitles(segments, vocals_path)
+
+    subtitles = SubtitlesClip(subtitles_path, generator)
+
+    dimmed_background_video = background_video.fl_image(
+        lambda image: (image * 0.3).astype("uint8"))
+
+    result = CompositeVideoClip([
+        dimmed_background_video,
+        subtitles.set_position(('center', 'center'), relative=True)
+    ]).set_audio(combined_audio)
+
+    # Save the karaoke video
+    filename = f"karaoke_{os.path.basename(video_path)}"
+    if not os.path.exists("../output"):
+        os.makedirs("../output")
+    result.write_videofile(f"../output/{filename}", fps=30, threads=4)
+
+    return filename
+
 
 def parse_arguments():
     parser = argparse.ArgumentParser(
@@ -24,7 +150,7 @@ def main():
     print(video_path)
 
     # audio_path = video_to_mp3(video_path)
-    # vocals_path, music_path = separate_tracks(audio_path)
+    vocals_path, music_path = separate_tracks(video_path)
 
     # create_karaoke_video(vocals_path, music_path, video_path)
 
