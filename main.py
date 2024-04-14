@@ -45,12 +45,18 @@ def write_subtitles(subtitles: dict, output_path: str):
 
     subtitles_path = output_path.replace(".mp4", ".srt")
 
-    srt_writer = get_writer("srt", output_path)
+    srt_writer = get_writer("srt", subtitles_path)
     srt_writer(subtitles)
+    srt_writer.close()
+
+    return subtitles_path
 
 
 def separate_tracks(audio_file_path: str) -> tuple[str, str]:
     """Separates vocals and music from an audio file."""
+
+    if not os.path.exists("./separated"):
+        os.makedirs("./separated")
 
     audio_filename = audio_file_path.split("/")[-1]
 
@@ -127,18 +133,24 @@ def create(vocals_path: str, music_path: str, video_path: str):
     return filename
 
 
+def video_to_mp3(video_path: str):
+    """Converts a video file to an mp3 file."""
+    print(f"Converting video to mp3 -> {video_path}")
+    audio = AudioFileClip(video_path)
+    audio_path = video_path.replace(".mp4", ".mp3")
+    audio.write_audiofile(audio_path, logger="bar")
+    print(f"Audio saved to: {audio_path}")
+    return audio_path
+
+
 def parse_arguments():
     parser = argparse.ArgumentParser(
         description="Create a karaoke video from a video file.",
         formatter_class=argparse.ArgumentDefaultsHelpFormatter,
     )
+
     parser.add_argument(
         "video_path", help="Path to the video file.")
-    parser.add_argument(
-        "--skip-subtitles",
-        action="store_true",
-        help="Skip generating subtitles.",
-    )
 
     return parser.parse_args()
 
@@ -147,12 +159,13 @@ def main():
     args = parse_arguments()
     # dewindowize
     video_path = args.video_path.replace("\\", "/")
-    print(video_path)
+    print(f"\nProcessing {video_path}.")
 
-    # audio_path = video_to_mp3(video_path)
-    vocals_path, music_path = separate_tracks(video_path)
+    audio_path = video_to_mp3(video_path)
 
-    # create_karaoke_video(vocals_path, music_path, video_path)
+    vocals_path, music_path = separate_tracks(audio_path)
+
+    create(vocals_path, music_path, video_path)
 
 
 if __name__ == "__main__":
