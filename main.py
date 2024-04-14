@@ -1,14 +1,46 @@
 import argparse
-
-import torch
-
-from moviepy.editor import *
-from moviepy.video.tools.subtitles import SubtitlesClip
-import demucs
-from whisper.utils import get_writer
-import whisperx
 import gc
 import os
+
+import demucs
+import torch
+import whisperx
+from moviepy.editor import *
+from moviepy.video.tools.subtitles import SubtitlesClip
+
+from whisper.utils import get_writer
+
+
+def video_to_mp3(video_path: str):
+    """Converts a video file to an mp3 file."""
+    print(f"Converting video to mp3 -> {video_path}")
+    audio = AudioFileClip(video_path)
+    audio_path = video_path.replace(".mp4", ".mp3")
+    audio.write_audiofile(audio_path, logger="bar")
+    print(f"Audio saved to: {audio_path}")
+    return audio_path
+
+
+def separate_tracks(audio_file_path: str) -> tuple[str, str]:
+    """Separates vocals and music from an audio file."""
+
+    if not os.path.exists("./separated"):
+        os.makedirs("./separated")
+
+    audio_filename = audio_file_path.split("/")[-1]
+
+    separator = demucs.api.Separator(progress=True, jobs=4)
+
+    _, separated = separator.separate_audio_file(audio_file_path)
+
+    for stem, source in separated.items():
+        demucs.api.save_audio(
+            source, f"../separated/{stem}_{audio_filename}", samplerate=separator.samplerate)
+
+    demucs.api.save_audio(
+        separated["other"] + separated["drums"] + separated["bass"], f"../separated/music_{audio_filename}", samplerate=separator.samplerate)
+
+    return f"../separated/vocals_{audio_filename}", f"../separated/music_{audio_filename}"
 
 
 def transcribe(audio_file: str) -> dict:
@@ -50,28 +82,6 @@ def write_subtitles(subtitles: dict, output_path: str):
     srt_writer.close()
 
     return subtitles_path
-
-
-def separate_tracks(audio_file_path: str) -> tuple[str, str]:
-    """Separates vocals and music from an audio file."""
-
-    if not os.path.exists("./separated"):
-        os.makedirs("./separated")
-
-    audio_filename = audio_file_path.split("/")[-1]
-
-    separator = demucs.api.Separator(progress=True, jobs=4)
-
-    _, separated = separator.separate_audio_file(audio_file_path)
-
-    for stem, source in separated.items():
-        demucs.api.save_audio(
-            source, f"../separated/{stem}_{audio_filename}", samplerate=separator.samplerate)
-
-    demucs.api.save_audio(
-        separated["other"] + separated["drums"] + separated["bass"], f"../separated/music_{audio_filename}", samplerate=separator.samplerate)
-
-    return f"../separated/vocals_{audio_filename}", f"../separated/music_{audio_filename}"
 
 
 def create(vocals_path: str, music_path: str, video_path: str):
@@ -131,16 +141,6 @@ def create(vocals_path: str, music_path: str, video_path: str):
     result.write_videofile(f"../output/{filename}", fps=30, threads=4)
 
     return filename
-
-
-def video_to_mp3(video_path: str):
-    """Converts a video file to an mp3 file."""
-    print(f"Converting video to mp3 -> {video_path}")
-    audio = AudioFileClip(video_path)
-    audio_path = video_path.replace(".mp4", ".mp3")
-    audio.write_audiofile(audio_path, logger="bar")
-    print(f"Audio saved to: {audio_path}")
-    return audio_path
 
 
 def parse_arguments():
