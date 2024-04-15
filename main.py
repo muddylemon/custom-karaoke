@@ -35,12 +35,12 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
 
     for stem, source in separated.items():
         demucs.api.save_audio(
-            source, f"../separated/{stem}_{audio_filename}", samplerate=separator.samplerate)
+            source, f"./separated/{stem}_{audio_filename}", samplerate=separator.samplerate)
 
     demucs.api.save_audio(
-        separated["other"] + separated["drums"] + separated["bass"], f"../separated/music_{audio_filename}", samplerate=separator.samplerate)
+        separated["other"] + separated["drums"] + separated["bass"], f"./separated/music_{audio_filename}", samplerate=separator.samplerate)
 
-    return f"../separated/vocals_{audio_filename}", f"../separated/music_{audio_filename}"
+    return f"./separated/vocals_{audio_filename}", f"./separated/music_{audio_filename}"
 
 
 def transcribe(audio_file: str) -> dict:
@@ -51,12 +51,13 @@ def transcribe(audio_file: str) -> dict:
 
     model = whisperx.load_model("large-v2", device, compute_type=compute_type)
 
-    model_dir = "/models/"
+    model_dir = "./models/"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
     audio = whisperx.load_audio(audio_file)
-    result = model.transcribe(audio, batch_size=batch_size)
+    result = model.transcribe(
+        audio, batch_size=batch_size)
     print("before alignment:" + result["segments"])  # before alignment
 
     gc.collect()
@@ -66,7 +67,7 @@ def transcribe(audio_file: str) -> dict:
     model_a, metadata = whisperx.load_align_model(
         language_code=result["language"], device=device)
     result = whisperx.align(result["segments"], model_a,
-                            metadata, audio, device, return_char_alignments=False)
+                            metadata, audio, device, return_char_alignments=True)
 
     print("\nafter alignment:" + result["segments"])  # after alignment
     return result["segments"]
@@ -136,9 +137,9 @@ def create(vocals_path: str, music_path: str, video_path: str):
 
     # Save the karaoke video
     filename = f"karaoke_{os.path.basename(video_path)}"
-    if not os.path.exists("../output"):
-        os.makedirs("../output")
-    result.write_videofile(f"../output/{filename}", fps=30, threads=4)
+    if not os.path.exists("./output"):
+        os.makedirs("./output")
+    result.write_videofile(f"./output/{filename}", fps=30, threads=4)
 
     return filename
 
