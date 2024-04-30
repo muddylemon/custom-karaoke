@@ -2,13 +2,19 @@ import argparse
 import gc
 import os
 
-import demucs
+import demucs.api
 import torch
 import whisperx
 from moviepy.editor import *
 from moviepy.video.tools.subtitles import SubtitlesClip
 
+from moviepy.config import change_settings
+
+
 from whisper.utils import get_writer
+
+change_settings(
+    {"IMAGEMAGICK_BINARY": "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI/magick.exe"})
 
 
 def video_to_mp3(video_path: str):
@@ -49,40 +55,42 @@ def transcribe(audio_file: str) -> dict:
     batch_size = 16  # reduce if low on GPU mem
     compute_type = "float16"
 
-    model = whisperx.load_model("large-v2", device, compute_type=compute_type)
+    model = whisperx.load_model("large-v3", device, compute_type=compute_type)
 
-    model_dir = "./models/"
+    model_dir = "./models"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
 
     audio = whisperx.load_audio(audio_file)
     result = model.transcribe(
         audio, batch_size=batch_size)
-    print("before alignment:" + result["segments"])  # before alignment
 
     gc.collect()
     torch.cuda.empty_cache()
-    del model
 
     model_a, metadata = whisperx.load_align_model(
         language_code=result["language"], device=device)
+
     result = whisperx.align(result["segments"], model_a,
-                            metadata, audio, device, return_char_alignments=True)
+                            metadata, audio, device, print_progress=True)
 
-    print("\nafter alignment:" + result["segments"])  # after alignment
-    return result["segments"]
+    return result
 
 
-def write_subtitles(subtitles: dict, output_path: str):
+def write_subtitles(subtitles: dict, vocals_path: str):
     """Write subtitles to a video file."""
 
-    subtitles_path = output_path.replace(".mp4", ".srt")
+    output_directory = "./subtitles"
+    if not os.path.exists(output_directory):
+        os.makedirs(output_directory)
 
-    srt_writer = get_writer("srt", subtitles_path)
-    srt_writer(subtitles)
-    srt_writer.close()
+    srt_writer = get_writer("srt", output_directory)
+    srt_writer(subtitles, vocals_path)
 
-    return subtitles_path
+    subtitle_path = os.path.join(output_directory, os.path.splitext(
+        os.path.basename(vocals_path))[0] + '.srt')
+
+    return subtitle_path
 
 
 def create(vocals_path: str, music_path: str, video_path: str):
@@ -165,6 +173,8 @@ def main():
     audio_path = video_to_mp3(video_path)
 
     vocals_path, music_path = separate_tracks(audio_path)
+
+    print(f"Creating karaoke video... {vocals_path} {music_path} {video_path}")
 
     create(vocals_path, music_path, video_path)
 

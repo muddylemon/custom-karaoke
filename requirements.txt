@@ -1,4 +1,4 @@
 moviepy
-demucs
+demucs @ git+https://github.com/facebookresearch/demucs@e976d93ecc3865e5757426930257e200846a520a
 openai-whisper
-whisperx
+whisperx==3.1.3
