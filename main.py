@@ -51,11 +51,11 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
 
 def transcribe(audio_file: str) -> dict:
     """Transcribe an audio file using Whisper."""
-    device = "cuda"
-    batch_size = 16  # reduce if low on GPU mem
+    device = 'cuda' if torch.cuda.is_available() else 'cpu'
+    batch_size = 8  # reduce if low on GPU mem
     compute_type = "float16"
 
-    model = whisperx.load_model("large-v3", device, compute_type=compute_type)
+    model = whisperx.load_model("medium.en", device, compute_type=compute_type)
 
     model_dir = "./models"
     if not os.path.exists(model_dir):
@@ -63,13 +63,13 @@ def transcribe(audio_file: str) -> dict:
 
     audio = whisperx.load_audio(audio_file)
     result = model.transcribe(
-        audio, batch_size=batch_size)
+        audio, language="en", batch_size=batch_size, print_progress=True)
 
     gc.collect()
     torch.cuda.empty_cache()
 
     model_a, metadata = whisperx.load_align_model(
-        language_code=result["language"], device=device)
+        language_code="en", device=device)
 
     result = whisperx.align(result["segments"], model_a,
                             metadata, audio, device, print_progress=True)
