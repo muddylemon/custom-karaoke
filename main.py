@@ -52,14 +52,17 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
 def transcribe(audio_file: str) -> dict:
     """Transcribe an audio file using Whisper."""
     device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    batch_size = 8  # reduce if low on GPU mem
+    batch_size = 16  # reduce if low on GPU mem
     compute_type = "float16"
 
-    model = whisperx.load_model("medium.en", device, compute_type=compute_type)
+    print(f"Using {device} for inference")
 
     model_dir = "./models"
     if not os.path.exists(model_dir):
         os.makedirs(model_dir)
+
+    model = whisperx.load_model(
+        "large-v2", device, compute_type=compute_type, download_root=model_dir)
 
     audio = whisperx.load_audio(audio_file)
     result = model.transcribe(
@@ -103,12 +106,11 @@ def create(vocals_path: str, music_path: str, video_path: str):
     background_video = VideoFileClip(video_path, target_resolution=(720, 1280)).set_fps(
         30).set_duration(combined_audio.duration)
 
-    text_container_size = (background_video.w - 2 *
-                           (background_video.w // 20), None)
+    text_container_size = 1240
 
     font = "fonts/dv.tff"
 
-    default_font_size = min(max(int(background_video.w / 18), 15), 45)
+    default_font_size = 72
 
     def generator(txt):
         if txt == "instrumental":
