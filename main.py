@@ -4,7 +4,7 @@ import os
 
 import demucs.api
 import torch
-import whisperx
+import whisper
 from moviepy.editor import *
 from moviepy.video.tools.subtitles import SubtitlesClip
 
@@ -49,35 +49,48 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
     return f"./separated/vocals_{audio_filename}", f"./separated/music_{audio_filename}"
 
 
-def transcribe(audio_file: str) -> dict:
-    """Transcribe an audio file using Whisper."""
-    device = 'cuda' if torch.cuda.is_available() else 'cpu'
-    batch_size = 16  # reduce if low on GPU mem
-    compute_type = "float16"
+def transcribe(audiofile_path: str, num_passes: int = 3, output_directory: str = "./subtitles") -> str:
+    """
+    Converts an MP3 file to a transcript using Whisper, assuming the last pass provides the best result.
 
-    print(f"Using {device} for inference")
+    Args:
+        audiofile_path (str): The file path of the MP3 file to be processed.
+        num_passes (int): Number of transcription passes to perform.
+        output_directory (str): Directory to save the output files.
 
-    model_dir = "./models"
-    if not os.path.exists(model_dir):
-        os.makedirs(model_dir)
+    Returns:
+        str: The path to the SRT file containing the transcript from the last pass.
+    """
+    try:
+        if not os.path.exists(output_directory):
+            os.makedirs(output_directory)
 
-    model = whisperx.load_model(
-        "large-v2", device, compute_type=compute_type, download_root=model_dir)
+        device = 'cuda' if torch.cuda.is_available() else 'cpu'
+        model = whisper.load_model("medium.en").to(device)
 
-    audio = whisperx.load_audio(audio_file)
-    result = model.transcribe(
-        audio, language="en", batch_size=batch_size, print_progress=True)
+        last_result = None
+        for i in range(num_passes):
+            print(f"Transcription pass {i + 1}")
+            current_result = model.transcribe(
+                audiofile_path, verbose=True, language="en", word_timestamps=True)
+            last_result = current_result
 
-    gc.collect()
-    torch.cuda.empty_cache()
+        if last_result is None:
+            raise ValueError("No transcription results obtained.")
 
-    model_a, metadata = whisperx.load_align_model(
-        language_code="en", device=device)
+        srt_writer = get_writer("srt", output_directory)
+        srt_writer(last_result, audiofile_path, highlight_words=True)
 
-    result = whisperx.align(result["segments"], model_a,
-                            metadata, audio, device, print_progress=True)
+        txt_writer = get_writer("txt", output_directory)
+        txt_writer(last_result, audiofile_path)
 
-    return result
+        subtitle_path = os.path.join(output_directory, os.path.splitext(
+            os.path.basename(audiofile_path))[0] + '.srt')
+        return subtitle_path
+
+    except Exception as e:
+        print(f"Error converting MP3 to transcript: {e}")
+        return ""
 
 
 def write_subtitles(subtitles: dict, vocals_path: str):
@@ -132,8 +145,7 @@ def create(vocals_path: str, music_path: str, video_path: str):
             align='center'
         )
 
-    segments = transcribe(vocals_path)
-    subtitles_path = write_subtitles(segments, vocals_path)
+    subtitles_path = transcribe(vocals_path)
 
     subtitles = SubtitlesClip(subtitles_path, generator)
 
