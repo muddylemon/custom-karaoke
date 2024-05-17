@@ -18,8 +18,11 @@ change_settings(
 def video_to_mp3(video_path: str):
     """Converts a video file to an mp3 file."""
     print(f"Converting video to mp3 -> {video_path}")
-    audio = AudioFileClip(video_path)
     audio_path = video_path.replace(".mp4", ".mp3")
+    if os.path.exists(audio_path):
+        return audio_path
+
+    audio = AudioFileClip(video_path)
     audio.write_audiofile(audio_path, logger="bar")
     print(f"Audio saved to: {audio_path}")
     return audio_path
@@ -32,6 +35,9 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
         os.makedirs("./separated")
 
     audio_filename = audio_file_path.split("/")[-1]
+
+    if os.path.exists(f"./separated/vocals_{audio_filename}"):
+        return f"./separated/vocals_{audio_filename}", f"./separated/music_{audio_filename}"
 
     separator = demucs.api.Separator(progress=True, jobs=4)
 
@@ -47,7 +53,7 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
     return f"./separated/vocals_{audio_filename}", f"./separated/music_{audio_filename}"
 
 
-def transcribe(audiofile_path: str, num_passes: int = 3, output_directory: str = "./subtitles") -> str:
+def transcribe(audiofile_path: str, num_passes: int = 1, output_directory: str = "./subtitles") -> str:
     """
     Converts an MP3 file to a transcript using Whisper, assuming the last pass provides the best result.
 
@@ -63,12 +69,15 @@ def transcribe(audiofile_path: str, num_passes: int = 3, output_directory: str =
         if not os.path.exists(output_directory):
             os.makedirs(output_directory)
 
+        if os.path.exists(f"{output_directory}/{os.path.splitext(os.path.basename(audiofile_path))[0]}.srt"):
+            return f"{output_directory}/{os.path.splitext(os.path.basename(audiofile_path))[0]}.srt"
+
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         model = whisper.load_model("medium.en").to(device)
 
         last_result = None
         for i in range(num_passes):
-            print(f"Transcription pass {i + 1}")
+            print(f"Transcription pass {i + 1} of {num_passes}...")
             current_result = model.transcribe(
                 audiofile_path, verbose=True, language="en", word_timestamps=True)
             last_result = current_result
@@ -125,7 +134,7 @@ def create(vocals_path: str, music_path: str, video_path: str):
 
     def generator(txt):
         if txt == "instrumental":
-            fontsize = default_font_size // 2
+            fontsize = 48
             fontcolor = "#aeedad"
         else:
             fontsize = default_font_size
