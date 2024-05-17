@@ -1,5 +1,4 @@
 import argparse
-import gc
 import os
 
 import demucs.api
@@ -9,7 +8,6 @@ from moviepy.editor import *
 from moviepy.video.tools.subtitles import SubtitlesClip
 
 from moviepy.config import change_settings
-
 
 from whisper.utils import get_writer
 
