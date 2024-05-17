@@ -10,9 +10,19 @@ from moviepy.video.tools.subtitles import SubtitlesClip
 from moviepy.config import change_settings
 
 from whisper.utils import get_writer
+import platform
 
-change_settings(
-    {"IMAGEMAGICK_BINARY": "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI/magick.exe"})
+
+if platform.system() == "Darwin":
+    imagemagick_path = "/opt/homebrew/bin/magick"
+elif platform.system() == "Windows":
+    imagemagick_path = "C:/Program Files/ImageMagick-7.1.1-Q16-HDRI/magick.exe"
+else:
+    raise NotImplementedError("Unsupported operating system")
+
+print(f"Using ImageMagick path: {imagemagick_path}")
+
+change_settings({"IMAGEMAGICK_BINARY": imagemagick_path})
 
 
 def video_to_mp3(video_path: str):
@@ -126,33 +136,13 @@ def create(vocals_path: str, music_path: str, video_path: str):
     background_video = VideoFileClip(video_path, target_resolution=(720, 1280)).set_fps(
         30).set_duration(combined_audio.duration)
 
-    text_container_size = 1240
-
-    font = "fonts/dv.tff"
-
-    default_font_size = 72
-
     def generator(txt):
-        if txt == "instrumental":
-            fontsize = 48
-            fontcolor = "#aeedad"
-        else:
-            fontsize = default_font_size
-            fontcolor = "#FFEEFF"
-
-        return TextClip(
-            txt,
-            font=font,
-            fontsize=fontsize,
-            color=fontcolor,
-            stroke_color="#000000",
-            stroke_width=0.5,
-            size=text_container_size,
-            method="caption",
-            align='center'
-        )
+        fontsize = 48 if txt == "instrumental" else 72
+        fontcolor = "#aeedad" if txt == "instrumental" else "#FFEEFF"
+        return TextClip(txt, font="./fonts/dv.ttf", fontsize=fontsize, color=fontcolor, stroke_color="#000000", stroke_width=0.5, size=(1240, None), method="pango", align='center')
 
     subtitles_path = transcribe(vocals_path)
+    print(f"Subtitles path: {subtitles_path}")
 
     subtitles = SubtitlesClip(subtitles_path, generator)
 
