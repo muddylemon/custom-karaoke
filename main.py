@@ -110,22 +110,6 @@ def transcribe(audiofile_path: str, num_passes: int = 1, output_directory: str =
         return ""
 
 
-def write_subtitles(subtitles: dict, vocals_path: str):
-    """Write subtitles to a video file."""
-
-    output_directory = "./subtitles"
-    if not os.path.exists(output_directory):
-        os.makedirs(output_directory)
-
-    srt_writer = get_writer("srt", output_directory)
-    srt_writer(subtitles, vocals_path)
-
-    subtitle_path = os.path.join(output_directory, os.path.splitext(
-        os.path.basename(vocals_path))[0] + '.srt')
-
-    return subtitle_path
-
-
 def create(vocals_path: str, music_path: str, video_path: str):
 
     audio = AudioFileClip(music_path).set_fps(44100)
