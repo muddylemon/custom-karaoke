@@ -129,7 +129,7 @@ def write_subtitles(subtitles: dict, vocals_path: str):
 def create(vocals_path: str, music_path: str, video_path: str):
 
     audio = AudioFileClip(music_path).set_fps(44100)
-    vocals_audio = AudioFileClip(vocals_path).volumex(0.15).set_fps(44100)
+    vocals_audio = AudioFileClip(vocals_path).volumex(0.05).set_fps(44100)
 
     combined_audio = CompositeAudioClip([audio, vocals_audio])
 
@@ -137,7 +137,7 @@ def create(vocals_path: str, music_path: str, video_path: str):
         30).set_duration(combined_audio.duration)
 
     def generator(txt):
-        fontsize = 48 if txt == "instrumental" else 72
+        fontsize = 24 if txt == "instrumental" else 48
         fontcolor = "#aeedad" if txt == "instrumental" else "#FFEEFF"
         return TextClip(txt, font="./fonts/dv.ttf", fontsize=fontsize, color=fontcolor, stroke_color="#000000", stroke_width=0.5, size=(1240, None), method='pango')
 
