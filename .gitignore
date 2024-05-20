@@ -7,7 +7,7 @@ models/
 subtitles/
 separated/
 output/
-
+inputs/
 # C extensions
 *.so
 
