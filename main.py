@@ -33,7 +33,7 @@ def video_to_mp3(video_path: str):
         return audio_path
 
     audio = AudioFileClip(video_path)
-    audio.write_audiofile(audio_path, logger="bar", threads=4)
+    audio.write_audiofile(audio_path, logger="bar")
     print(f"Audio saved to: {audio_path}")
     return audio_path
 
