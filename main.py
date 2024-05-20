@@ -116,11 +116,11 @@ def create(vocals_path: str, music_path: str, video_path: str):
         30).set_duration(combined_audio.duration)
 
     def generator(txt):
-        fontsize = 24 if txt == "instrumental" else 48
+        fontsize = 18 if txt == "instrumental" else 36
         fontcolor = "#aeedad" if txt == "instrumental" else "#FFEEFF"
         return TextClip(txt, font="./fonts/dv.ttf", fontsize=fontsize, color=fontcolor, stroke_color="#000000", stroke_width=0.5, size=(1240, None), method='pango')
 
-    subtitles_path = transcribe(vocals_path, 2)
+    subtitles_path = transcribe(vocals_path, 1)
 
     subtitles = SubtitlesClip(subtitles_path, generator)
 

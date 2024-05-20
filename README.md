@@ -8,9 +8,8 @@ The Custom Karaoke Python Script is a command-line tool that allows users to cre
 
 ## Features
 
-- Remove vocals from audio files
-- Customize karaoke tracks by adjusting volume levels
-- Supports various audio file formats (e.g., MP3, WAV)
+- Create a karaoke video from any source video
+
 
 ## Installation
 
