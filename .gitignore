@@ -5,6 +5,7 @@ __pycache__/
 
 models/
 subtitles/
+stems/
 separated/
 output/
 inputs/
