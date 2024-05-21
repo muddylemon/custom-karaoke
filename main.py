@@ -20,8 +20,6 @@ elif platform.system() == "Windows":
 else:
     raise NotImplementedError("Unsupported operating system")
 
-print(f"Using ImageMagick path: {imagemagick_path}")
-
 change_settings({"IMAGEMAGICK_BINARY": imagemagick_path})
 
 
@@ -38,16 +36,16 @@ def video_to_mp3(video_path: str):
     return audio_path
 
 
-def separate_tracks(audio_file_path: str) -> tuple[str, str]:
+def separate_stems(audio_file_path: str) -> tuple[str, str]:
     """Separates vocals and music from an audio file."""
 
-    if not os.path.exists("./separated"):
-        os.makedirs("./separated")
+    if not os.path.exists("./stems"):
+        os.makedirs("./stems")
 
     audio_filename = audio_file_path.split("/")[-1]
 
-    if os.path.exists(f"./separated/vocals_{audio_filename}"):
-        return f"./separated/vocals_{audio_filename}", f"./separated/music_{audio_filename}"
+    if os.path.exists(f"./stems/vocals_{audio_filename}"):
+        return f"./stems/vocals_{audio_filename}", f"./stems/music_{audio_filename}"
 
     separator = demucs.api.Separator(progress=True, jobs=4)
 
@@ -55,12 +53,12 @@ def separate_tracks(audio_file_path: str) -> tuple[str, str]:
 
     for stem, source in separated.items():
         demucs.api.save_audio(
-            source, f"./separated/{stem}_{audio_filename}", samplerate=separator.samplerate)
+            source, f"./stems/{stem}_{audio_filename}", samplerate=separator.samplerate)
 
     demucs.api.save_audio(
-        separated["other"] + separated["drums"] + separated["bass"], f"./separated/music_{audio_filename}", samplerate=separator.samplerate)
+        separated["other"] + separated["drums"] + separated["bass"], f"./stems/music_{audio_filename}", samplerate=separator.samplerate)
 
-    return f"./separated/vocals_{audio_filename}", f"./separated/music_{audio_filename}"
+    return f"./stems/vocals_{audio_filename}", f"./stems/music_{audio_filename}"
 
 
 def transcribe(audiofile_path: str, num_passes: int = 1) -> str:
@@ -160,7 +158,7 @@ def main():
 
     audio_path = video_to_mp3(video_path)
 
-    vocals_path, music_path = separate_tracks(audio_path)
+    vocals_path, music_path = separate_stems(audio_path)
 
     print(f"Creating karaoke video..")
 
