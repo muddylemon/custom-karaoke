@@ -72,11 +72,15 @@ def transcribe(audiofile_path: str, num_passes: int = 1) -> str:
         str: The path to the SRT file containing the transcript from the last pass.
     """
     try:
+
+        subtitle_path = os.path.join("./subtitles", os.path.splitext(
+            os.path.basename(audiofile_path))[0] + '.srt')
+
+        if os.path.exists(subtitle_path):
+            return subtitle_path
+
         if not os.path.exists("./subtitles"):
             os.makedirs("./subtitles")
-
-        if os.path.exists(f"subtitles/{os.path.splitext(os.path.basename(audiofile_path))[0]}.srt"):
-            return f"subtitles/{os.path.splitext(os.path.basename(audiofile_path))[0]}.srt"
 
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
         model = whisper.load_model("large-v2").to(device)
@@ -94,8 +98,6 @@ def transcribe(audiofile_path: str, num_passes: int = 1) -> str:
         srt_writer = get_writer("srt", "./subtitles")
         srt_writer(last_result, audiofile_path, highlight_words=True)
 
-        subtitle_path = os.path.join("./subtitles", os.path.splitext(
-            os.path.basename(audiofile_path))[0] + '.srt')
         return subtitle_path
 
     except Exception as e:
@@ -147,7 +149,7 @@ def create(video_path: str):
             color="#FFFFFF",
             stroke_color="#000000",
             stroke_width=0.5,
-            size=(1240, None),
+            size=(1200, None),
             method='pango'
         )
 
