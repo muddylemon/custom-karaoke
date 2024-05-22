@@ -103,7 +103,19 @@ def transcribe(audiofile_path: str, num_passes: int = 1) -> str:
         return ""
 
 
-def create(vocals_path: str, music_path: str, video_path: str):
+def create(video_path: str):
+    """Creates a karaoke video from the separated audio files and the original video file.
+
+    Args:
+        video_path (str): The path to the original video file.
+
+    Returns:
+        str: The filename of the created karaoke video.
+    """
+
+    audio_path = video_to_mp3(video_path)
+
+    vocals_path, music_path = separate_stems(audio_path)
 
     music = AudioFileClip(music_path).set_fps(44100)
     vocals_audio = AudioFileClip(vocals_path).volumex(0.05).set_fps(44100)
@@ -113,17 +125,33 @@ def create(vocals_path: str, music_path: str, video_path: str):
     background_video = VideoFileClip(video_path, target_resolution=(720, 1280)).set_fps(
         30).set_duration(combined_audio.duration)
 
-    def generator(txt):
-        fontsize = 18 if txt == "instrumental" else 36
-        fontcolor = "#aeedad" if txt == "instrumental" else "#FFEEFF"
-        return TextClip(txt, font="./fonts/dv.ttf", fontsize=fontsize, color=fontcolor, stroke_color="#000000", stroke_width=0.5, size=(1240, None), method='pango')
-
-    subtitles_path = transcribe(vocals_path, 1)
-
-    subtitles = SubtitlesClip(subtitles_path, generator)
-
     dimmed_background_video = background_video.fl_image(
         lambda image: (image * 0.3).astype("uint8"))
+
+    subtitles_file = transcribe(vocals_path, 1)
+
+    def generator(txt):
+        """Generates the subtitles for the karaoke video.
+
+        Args:
+            txt (str): The text to be added to the subtitles.
+
+        Returns:
+            TextClip: The subtitle text clip.
+        """
+
+        return TextClip(
+            txt,
+            font="Arial-Bold",
+            fontsize=36,
+            color="#FFFFFF",
+            stroke_color="#000000",
+            stroke_width=0.5,
+            size=(1240, None),
+            method='pango'
+        )
+
+    subtitles = SubtitlesClip(subtitles_file, generator)
 
     result = CompositeVideoClip([
         dimmed_background_video,
@@ -152,17 +180,11 @@ def parse_arguments():
 
 def main():
     args = parse_arguments()
-    # dewindowize
     video_path = args.video_path.replace("\\", "/")
-    print(f"\nProcessing {video_path}.")
-
-    audio_path = video_to_mp3(video_path)
-
-    vocals_path, music_path = separate_stems(audio_path)
 
     print(f"Creating karaoke video..")
 
-    create(vocals_path, music_path, video_path)
+    create(video_path)
 
 
 if __name__ == "__main__":
