@@ -12,6 +12,18 @@ from moviepy.config import change_settings
 from whisper.utils import get_writer
 import platform
 
+TRANSCRIPTION_MODEL = "medium.en"
+NUM_PASSES = 1
+VOCAL_VOLUME = 0.05
+VIDEO_WIDTH = 1280
+VIDEO_HEIGHT = 720
+TEXT_WIDTH = 1200
+TEXT_COLOR = "#FFFFFF"
+TEXT_STROKE_COLOR = "#000000"
+TEXT_STROKE_WIDTH = 0.5
+FONT_SIZE = 40
+FONT = "./fonts/kg.ttf"
+
 
 if platform.system() == "Darwin":
     imagemagick_path = "/opt/homebrew/bin/magick"
@@ -46,6 +58,8 @@ def separate_stems(audio_file_path: str) -> tuple[str, str]:
 
     if os.path.exists(f"./stems/vocals_{audio_filename}"):
         return f"./stems/vocals_{audio_filename}", f"./stems/music_{audio_filename}"
+
+    print(f"Separating vocals from {audio_file_path}")
 
     separator = demucs.api.Separator(progress=True, jobs=4)
 
@@ -83,7 +97,7 @@ def transcribe(audiofile_path: str, num_passes: int = 1) -> str:
             os.makedirs("./subtitles")
 
         device = 'cuda' if torch.cuda.is_available() else 'cpu'
-        model = whisper.load_model("large-v2").to(device)
+        model = whisper.load_model(TRANSCRIPTION_MODEL).to(device)
 
         last_result = None
         for i in range(num_passes):
@@ -120,17 +134,18 @@ def create(video_path: str):
     vocals_path, music_path = separate_stems(audio_path)
 
     music = AudioFileClip(music_path).set_fps(44100)
-    vocals_audio = AudioFileClip(vocals_path).volumex(0.05).set_fps(44100)
+    vocals_audio = AudioFileClip(vocals_path).volumex(
+        VOCAL_VOLUME).set_fps(44100)
 
     combined_audio = CompositeAudioClip([music, vocals_audio])
 
-    background_video = VideoFileClip(video_path, target_resolution=(720, 1280)).set_fps(
+    background_video = VideoFileClip(video_path, target_resolution=(VIDEO_HEIGHT, VIDEO_HEIGHT)).set_fps(
         30).set_duration(combined_audio.duration)
 
     dimmed_background_video = background_video.fl_image(
         lambda image: (image * 0.3).astype("uint8"))
 
-    subtitles_file = transcribe(vocals_path, 1)
+    subtitles_file = transcribe(vocals_path, NUM_PASSES)
 
     def generator(txt):
         """Generates the subtitles for the karaoke video.
@@ -144,12 +159,12 @@ def create(video_path: str):
 
         return TextClip(
             txt,
-            font="Arial-Bold",
-            fontsize=36,
-            color="#FFFFFF",
-            stroke_color="#000000",
-            stroke_width=0.5,
-            size=(1200, None),
+            font=FONT,
+            fontsize=FONT_SIZE,
+            color=TEXT_COLOR,
+            stroke_color=TEXT_STROKE_COLOR,
+            stroke_width=TEXT_STROKE_WIDTH,
+            size=(TEXT_WIDTH, None),
             method='pango'
         )
 
