@@ -139,7 +139,7 @@ def create(video_path: str):
 
     combined_audio = CompositeAudioClip([music, vocals_audio])
 
-    background_video = VideoFileClip(video_path, target_resolution=(VIDEO_HEIGHT, VIDEO_HEIGHT)).set_fps(
+    background_video = VideoFileClip(video_path, target_resolution=(VIDEO_HEIGHT, VIDEO_WIDTH)).set_fps(
         30).set_duration(combined_audio.duration)
 
     dimmed_background_video = background_video.fl_image(
